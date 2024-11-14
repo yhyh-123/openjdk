@@ -808,5 +808,6 @@ public class WhiteBox {
   public native long rss();
 
   // enable and disable CPU time sampler queue processing
+  // only works with debug builds
   public native void setCPUTimeSamplerProcessQueue(boolean processQueue);
 }
