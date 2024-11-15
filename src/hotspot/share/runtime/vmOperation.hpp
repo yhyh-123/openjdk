@@ -109,7 +109,6 @@
   template(PrintCompileQueue)                     \
   template(PrintClassHierarchy)                   \
   template(PrintClasses)                          \
-  template(ICBufferFull)                          \
   template(PrintMetadata)                         \
   template(GTestExecuteAtSafepoint)               \
   template(GTestStopSafepoint)                    \
@@ -118,6 +117,7 @@
   template(RendezvousGCThreads)                   \
   template(CPUTimeSamplerThreadInitializer)       \
   template(CPUTimeSamplerThreadTerminator)        \
+  template(ReinitializeMDO)
 
 class Thread;
 class outputStream;

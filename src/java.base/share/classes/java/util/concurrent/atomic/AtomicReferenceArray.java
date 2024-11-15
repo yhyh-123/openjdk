@@ -297,8 +297,7 @@ public class AtomicReferenceArray<E> implements java.io.Serializable {
     }
 
     /**
-     * Returns the String representation of the current values of array.
-     * @return the String representation of the current values of array
+     * {@return the String representation of the current values of array}
      */
     public String toString() {
         int iMax = array.length - 1;
@@ -359,6 +358,7 @@ public class AtomicReferenceArray<E> implements java.io.Serializable {
      * @return the value
      * @since 9
      */
+    @SuppressWarnings("unchecked")
     public final E getPlain(int i) {
         return (E)AA.get(array, i);
     }
@@ -384,6 +384,7 @@ public class AtomicReferenceArray<E> implements java.io.Serializable {
      * @return the value
      * @since 9
      */
+    @SuppressWarnings("unchecked")
     public final E getOpaque(int i) {
         return (E)AA.getOpaque(array, i);
     }
@@ -408,6 +409,7 @@ public class AtomicReferenceArray<E> implements java.io.Serializable {
      * @return the value
      * @since 9
      */
+    @SuppressWarnings("unchecked")
     public final E getAcquire(int i) {
         return (E)AA.getAcquire(array, i);
     }
@@ -438,6 +440,7 @@ public class AtomicReferenceArray<E> implements java.io.Serializable {
      * expected value if successful
      * @since 9
      */
+    @SuppressWarnings("unchecked")
     public final E compareAndExchange(int i, E expectedValue, E newValue) {
         return (E)AA.compareAndExchange(array, i, expectedValue, newValue);
     }
@@ -456,6 +459,7 @@ public class AtomicReferenceArray<E> implements java.io.Serializable {
      * expected value if successful
      * @since 9
      */
+    @SuppressWarnings("unchecked")
     public final E compareAndExchangeAcquire(int i, E expectedValue, E newValue) {
         return (E)AA.compareAndExchangeAcquire(array, i, expectedValue, newValue);
     }
@@ -474,6 +478,7 @@ public class AtomicReferenceArray<E> implements java.io.Serializable {
      * expected value if successful
      * @since 9
      */
+    @SuppressWarnings("unchecked")
     public final E compareAndExchangeRelease(int i, E expectedValue, E newValue) {
         return (E)AA.compareAndExchangeRelease(array, i, expectedValue, newValue);
     }
