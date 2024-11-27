@@ -194,7 +194,16 @@ WB_ENTRY(void, WB_SetCPUTimeSamplerProcessQueue(JNIEnv* env, jobject o, bool pro
   JfrCPUTimeThreadSampling::set_process_queue(process_queue);
 #else
   warning("Stopping the CPU time sampler is only supported in debug builds with JFR");
-#endif
+WB_END
+
+WB_ENTRY(jint, WB_TakeLockAndHangInSafepoint(JNIEnv* env, jobject wb))
+  JavaThread* self = JavaThread::current();
+  // VMStatistic_lock is used to minimize interference with VM locking
+  MutexLocker mu(VMStatistic_lock);
+  VM_HangInSafepoint force_safepoint_stuck_op;
+  VMThread::execute(&force_safepoint_stuck_op);
+  ShouldNotReachHere();
+  return 0;
 WB_END
 
 class WBIsKlassAliveClosure : public LockedClassesDo {
@@ -2999,6 +3008,7 @@ static JNINativeMethod methods[] = {
   {CC"cleanMetaspaces", CC"()V",                      (void*)&WB_CleanMetaspaces},
   {CC"rss", CC"()J",                                  (void*)&WB_Rss},
   {CC"printString", CC"(Ljava/lang/String;I)Ljava/lang/String;", (void*)&WB_PrintString},
+  {CC"lockAndStuckInSafepoint", CC"()V", (void*)&WB_TakeLockAndHangInSafepoint},
   {CC"wordSize", CC"()J",                             (void*)&WB_WordSize},
   {CC"rootChunkWordSize", CC"()J",                    (void*)&WB_RootChunkWordSize},
   {CC"setCPUTimeSamplerProcessQueue", CC"(Z)V",       (void*)&WB_SetCPUTimeSamplerProcessQueue},
