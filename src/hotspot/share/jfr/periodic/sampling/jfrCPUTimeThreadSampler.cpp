@@ -874,7 +874,7 @@ void JfrCPUTimeThreadSampler::set_rate(double rate, bool autoadapt) {
   if (_rate > 0 && Atomic::load(&_disenrolled) == false) {
     autoadapt_period_if_needed();
   } else {
-      Atomic::store(&_current_sampling_period_ns, compute_sampling_period(rate));
+    Atomic::store(&_current_sampling_period_ns, compute_sampling_period(rate));
   }
 }
 
