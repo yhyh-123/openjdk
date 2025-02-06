@@ -22,6 +22,7 @@
  *
  */
 
+#include "memory/resourceArea.hpp"
 #include "precompiled.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/pcDesc.hpp"
@@ -574,6 +575,8 @@ static void forte_fill_call_trace_given_top(JavaThread* thd,
 extern "C" {
 JNIEXPORT
 void AsyncGetCallTrace(ASGCT_CallTrace *trace, jint depth, void* ucontext) {
+
+  NoResourceMark rm;
 
   // Can't use thread_from_jni_environment as it may also perform a VM exit check that is unsafe to
   // do from this context.

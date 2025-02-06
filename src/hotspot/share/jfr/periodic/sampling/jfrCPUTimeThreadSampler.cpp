@@ -22,6 +22,7 @@
  *
  */
 
+#include "memory/resourceArea.hpp"
 #include "precompiled.hpp"
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 
@@ -737,6 +738,7 @@ void JfrCPUTimeThreadSampling::handle_timer_signal(siginfo_t* info, void* contex
 }
 
 void JfrCPUTimeThreadSampler::handle_timer_signal(siginfo_t* info, void* context) {
+  NoResourceMark rm;
   JavaThread* jt = get_java_thread_if_valid();
   if (jt == nullptr) {
     return;
