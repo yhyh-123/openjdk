@@ -32,7 +32,6 @@
 #include "jfr/writers/jfrJavaEventWriter.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 
-#ifdef ASSERT
 static void assert_precondition(JavaThread* jt) {
   assert(jt != nullptr, "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_java(jt);)
@@ -49,7 +48,6 @@ static bool check_and_assert_epoch_identity(JavaThread* jt, u2 current_epoch) {
   const u2 vthread_epoch = epoch_raw & epoch_mask;
   return vthread_epoch == current_epoch; // might be false for the CPU-time sampler
 }
-#endif // ASSERT
 
 void* JfrIntrinsicSupport::write_checkpoint(JavaThread* jt) {
   DEBUG_ONLY(assert_precondition(jt);)
