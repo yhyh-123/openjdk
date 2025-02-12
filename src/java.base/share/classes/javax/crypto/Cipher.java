@@ -149,7 +149,8 @@ import sun.security.util.KnownOIDs;
  * <li>{@code AES/CBC/PKCS5Padding} (128)</li>
  * <li>{@code AES/ECB/NoPadding} (128)</li>
  * <li>{@code AES/ECB/PKCS5Padding} (128)</li>
- * <li>{@code AES/GCM/NoPadding} (128)</li>
+ * <li>{@code AES/GCM/NoPadding} (128, 256)</li>
+ * <li>{@code ChaCha20-Poly1305}</li>
  * <li>{@code DESede/CBC/NoPadding} (168)</li>
  * <li>{@code DESede/CBC/PKCS5Padding} (168)</li>
  * <li>{@code DESede/ECB/NoPadding} (168)</li>
@@ -169,6 +170,7 @@ import sun.security.util.KnownOIDs;
  *      RFC 5116: An Interface and Algorithms for Authenticated Encryption
  * @spec https://www.rfc-editor.org/info/rfc7539
  *      RFC 7539: ChaCha20 and Poly1305 for IETF Protocols
+ * @spec security/standard-names.html Java Security Standard Algorithm Names
  * @author Jan Luehe
  * @see KeyGenerator
  * @see SecretKey
@@ -519,6 +521,7 @@ public class Cipher {
      * Java Security Standard Algorithm Names Specification</a>
      * for information about standard transformation names.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code Cipher} object that implements the requested
      * transformation
      *
@@ -612,6 +615,7 @@ public class Cipher {
      *
      * @param provider the name of the provider
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code Cipher} object that implements the requested
      * transformation
      *
@@ -684,6 +688,7 @@ public class Cipher {
      *
      * @param provider the provider
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code Cipher} object that implements the requested
      * transformation
      *

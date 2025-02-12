@@ -144,6 +144,7 @@ import sun.security.jca.ProvidersFilter;
  * necessary locking. Multiple threads each manipulating a different
  * <code>XMLSignatureFactory</code> instance need not synchronize.
  *
+ * @spec security/standard-names.html Java Security Standard Algorithm Names
  * @author Sean Mullan
  * @author JSR 105 Expert Group
  * @since 1.6
@@ -187,6 +188,7 @@ public abstract class XMLSignatureFactory {
      *    "{@docRoot}/../specs/security/standard-names.html#xml-signature-xmlsignaturefactorykeyinfofactorytransformservice-mechanisms">
      *    Java Security Standard Algorithm Names Specification</a> for a list of
      *    standard mechanism types.
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a new <code>XMLSignatureFactory</code>
      * @throws NullPointerException if <code>mechanismType</code> is
      *    <code>null</code>
@@ -235,6 +237,7 @@ public abstract class XMLSignatureFactory {
      *    Java Security Standard Algorithm Names Specification</a> for a list of
      *    standard mechanism types.
      * @param provider the <code>Provider</code> object
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a new <code>XMLSignatureFactory</code>
      * @throws NullPointerException if <code>provider</code> or
      *    <code>mechanismType</code> is <code>null</code>
@@ -288,6 +291,7 @@ public abstract class XMLSignatureFactory {
      *    Java Security Standard Algorithm Names Specification</a> for a list of
      *    standard mechanism types.
      * @param provider the string name of the provider
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a new <code>XMLSignatureFactory</code>
      * @throws NoSuchProviderException if the specified provider is not
      *    registered in the security provider list
