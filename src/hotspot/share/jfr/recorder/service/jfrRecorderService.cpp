@@ -485,12 +485,14 @@ void JfrRecorderService::invoke_safepoint_clear() {
 
 void JfrRecorderService::safepoint_clear() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
+  wait_till_no_writers_and_prevent_new_writers();
   _checkpoint_manager.begin_epoch_shift();
   _storage.clear();
   _chunkwriter.set_time_stamp();
   JfrDeprecationManager::on_safepoint_clear();
   JfrStackTraceRepository::clear();
   _checkpoint_manager.end_epoch_shift();
+  allow_writers();
 }
 
 void JfrRecorderService::post_safepoint_clear() {
@@ -707,4 +709,33 @@ void JfrRecorderService::emit_leakprofiler_events(int64_t cutoff_ticks, bool emi
   MACOS_AARCH64_ONLY(ThreadWXEnable __wx(WXWrite, current_thread));
   ThreadInVMfromNative transition(current_thread);
   LeakProfiler::emit_events(cutoff_ticks, emit_all, skip_bfs);
+}
+
+// -1 == don't write
+static volatile int _non_safepoint_writers = 0;
+
+void JfrRecorderService::wait_till_no_writers_and_prevent_new_writers() {
+  // try to cas -1 into it, when value is 0
+  while (Atomic::cmpxchg(&_non_safepoint_writers, 0, -1) != 0) {}
+}
+
+void JfrRecorderService::allow_writers() {
+  Atomic::store(&_non_safepoint_writers, 0);
+}
+
+void JfrRecorderService::wait_till_writable_and_add_writer() {
+  int prev = Atomic::load(&_non_safepoint_writers);
+  while (true) {
+    if (prev == -1) {
+      prev = 0;
+    }
+    if (Atomic::cmpxchg(&_non_safepoint_writers, prev, prev + 1) == prev) {
+      return;
+    }
+  }
+}
+
+void JfrRecorderService::remove_writer() {
+  assert(Atomic::load(&_non_safepoint_writers) > 0, "invariant");
+  Atomic::dec(&_non_safepoint_writers);
 }

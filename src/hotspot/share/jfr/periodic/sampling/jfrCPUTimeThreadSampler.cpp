@@ -24,6 +24,7 @@
 
 #include "memory/resourceArea.hpp"
 #include "precompiled.hpp"
+#include "runtime/atomic.hpp"
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 
 #if defined(LINUX)
@@ -36,8 +37,10 @@
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/periodic/sampling/jfrCallTrace.hpp"
 #include "jfr/recorder/storage/jfrBuffer.hpp"
+#include "jfr/recorder/service/jfrRecorderService.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfrfiles/jfrEventClasses.hpp"
+#include "memory/iterator.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/threadCrashProtection.hpp"
@@ -106,6 +109,9 @@ static JavaThread* get_java_thread_if_valid() {
   return jt;
 }
 
+
+volatile uint32_t active_recordings = 0;
+
 // A trace of stack frames, contains all information
 // collected in the signal handler, required to create
 // a JFR event with a stack trace
@@ -159,22 +165,28 @@ public:
   };
 
   // Record a trace of the current thread
-  void record_trace(JavaThread* jt, void* ucontext, int64_t sampling_period) {
+  void record_trace(JavaThread* jt, void* ucontext, int64_t sampling_period, bool should_pause) {
     _stacktrace = JfrAsyncStackTrace(_frames, _max_frames);
     set_sampled_thread(jt);
     _type = NO_SAMPLE;
     _error = ERROR_NO_TRACE;
     _start_time = _end_time = JfrTicks::now();
     _sampling_period = sampling_period;
-    if (!jt->in_deopt_handler() && !Universe::heap()->is_stw_gc_active())  {
+    if (!should_pause && !jt->in_deopt_handler() && !Universe::heap()->is_stw_gc_active())  {
       ThreadInAsgct tia(jt);
+      Atomic::inc(&active_recordings);
       if (thread_state_in_java(jt)) {
         record_java_trace(jt, ucontext);
       } else if (thread_state_in_non_java(jt)) {
         record_native_trace(jt, ucontext);
       }
+      Atomic::dec(&active_recordings);
     }
     _end_time = JfrTicks::now();
+  }
+
+  void metadata_do(MetadataClosure* f) const {
+    _stacktrace.metadata_do(f);
   }
 
 private:
@@ -320,6 +332,32 @@ public:
     _tail = 0;
     OrderAccess::release();
   }
+
+  void metadata_do(MetadataClosure* f) {
+    if (Atomic::load(&_head) == Atomic::load(&_tail)) {
+      return;
+    }
+    // iterate over all elements between head and tail
+    uint32_t head = Atomic::load(&_head);
+    uint32_t tail = Atomic::load(&_tail);
+    printf("head: %d, tail: %d\n", head, tail);
+    if (tail > head) {
+      for (u4 i = head; i < tail; i++) {
+        Element* e = element(i);
+        e->_trace->metadata_do(f);
+      }
+    } else {
+      for (u4 i = _head; i < _capacity; i++) {
+        Element* e = element(i);
+        e->_trace->metadata_do(f);
+      }
+      for (u4 i = 0; i < _tail; i++) {
+        Element* e = element(i);
+        e->_trace->metadata_do(f);
+      }
+    }
+  }
+
 };
 
 
@@ -365,6 +403,10 @@ public:
     }
     _filled.reset();
   }
+
+  void metadata_do(MetadataClosure* f) {
+    _filled.metadata_do(f);
+  }
 };
 
 static int64_t compute_sampling_period(double rate);
@@ -382,6 +424,8 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   volatile bool _disenrolled;
   volatile bool _stop_signals = false;
   volatile int _active_signal_handlers;
+  volatile bool _enqueue_loop_active = false;
+  volatile bool _should_pause = false;
   JfrStackFrame *_jfrFrames;
   volatile int _ignore_because_queue_full = 0;
   volatile int _ignore_because_queue_full_sum = 0;
@@ -411,6 +455,8 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
 
   void set_rate(double rate, bool autoadapt);
   int64_t get_sampling_period() const { return Atomic::load(&_current_sampling_period_ns); };
+
+  void metadata_do(MetadataClosure* f);
 
 protected:
   virtual void post_run();
@@ -566,7 +612,7 @@ static size_t count = 0;
 
 bool JfrCPUTimeThreadSampler::should_process_trace_queue() {
 #ifdef ASSERT
-  return Atomic::load(&_process_queue);
+  return Atomic::load(&_process_queue) && !Atomic::load(&_should_pause);
 #else
   return true;
 #endif
@@ -578,7 +624,14 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
   assert(enqueue_buffer != nullptr, "invariant");
   enqueue_buffer = renew_if_full(enqueue_buffer);
 
+  if (!should_process_trace_queue()) {
+    return;
+  }
+
+  Atomic::store(&_enqueue_loop_active, true);
+
   while (should_process_trace_queue() && (trace = _queues.filled().dequeue()) != nullptr) {
+    JfrRecorderService::wait_till_writable_and_add_writer();
     // make sure we have enough space in the JFR enqueue buffer
     // create event, convert frames (resolve method ids)
     // we can't do the conversion in the signal handler,
@@ -617,8 +670,10 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       }
     }
     enqueue_buffer = renew_if_full(enqueue_buffer);
+    JfrRecorderService::remove_writer();
     _queues.fresh().enqueue(trace);
   }
+  Atomic::store(&_enqueue_loop_active, false);
 }
 
 void JfrCPUTimeThreadSampler::post_run() {
@@ -752,16 +807,26 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(siginfo_t* info, void* context
   if (jt == nullptr) {
     return;
   }
+  if (Atomic::load(&_should_pause)) {
+    // TODO: needed?
+    return;
+  }
   JfrCPUTimeTrace* trace = this->_queues.fresh().dequeue();
   if (trace != nullptr) {
     // the sampling period might be too low for the current Linux configuration
     // so samples might be skipped and we have to compute the actual period
     int64_t period = get_sampling_period() * (info->si_overrun + 1);
-    trace->record_trace(jt, context, period);
+    trace->record_trace(jt, context, period, Atomic::load(&_should_pause));
     this->_queues.filled().enqueue(trace);
   } else {
     Atomic::inc(&_ignore_because_queue_full);
     Atomic::inc(&_ignore_because_queue_full_sum);
+  }
+}
+
+void JfrCPUTimeThreadSampling::metadata_do(MetadataClosure* f) {
+  if (_sampler != nullptr) {
+    _sampler->metadata_do(f);
   }
 }
 
@@ -887,6 +952,18 @@ void JfrCPUTimeThreadSampler::set_rate(double rate, bool autoadapt) {
   } else {
     Atomic::store(&_current_sampling_period_ns, compute_sampling_period(rate));
   }
+}
+
+void JfrCPUTimeThreadSampler::metadata_do(MetadataClosure* f) {
+  printf("metadata_do start\n");
+  Atomic::store(&_should_pause, true);
+  while (Atomic::load(&active_recordings) > 0) {
+  }
+  while (Atomic::load(&_enqueue_loop_active)) {
+  }
+  _queues.metadata_do(f);
+  Atomic::store(&_should_pause, false);
+  printf("metadata_do end\n");
 }
 
 void JfrCPUTimeThreadSampler::update_all_thread_timers() {

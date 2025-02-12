@@ -35,6 +35,9 @@
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 
 MetadataOnStackBuffer* MetadataOnStackMark::_used_buffers = nullptr;
 MetadataOnStackBuffer* MetadataOnStackMark::_free_buffers = nullptr;
@@ -60,9 +63,15 @@ MetadataOnStackMark::MetadataOnStackMark(bool walk_all_metadata, bool redefiniti
 
   Threads::metadata_handles_do(Metadata::mark_on_stack);
 
+#if INCLUDE_JFR
+  MetadataOnStackClosure md_on_stack;
+  Jfr::metadata_do(&md_on_stack);
+#endif
+
   if (walk_all_metadata) {
     MetadataOnStackClosure md_on_stack;
     Threads::metadata_do(&md_on_stack);
+
     if (redefinition_walk) {
       // We have to walk the whole code cache during redefinition.
       CodeCache::metadata_do(&md_on_stack);

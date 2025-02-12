@@ -64,6 +64,9 @@ class JfrRecorderService : public StackObj {
   void invoke_safepoint_write();
   void post_safepoint_write();
 
+  void wait_till_no_writers_and_prevent_new_writers();
+  void allow_writers();
+
  public:
   JfrRecorderService();
   void start();
@@ -74,6 +77,9 @@ class JfrRecorderService : public StackObj {
   void evaluate_chunk_size_for_rotation();
   void emit_leakprofiler_events(int64_t cutoff_ticks, bool emit_all, bool skip_bfs);
   static bool is_recording();
+
+  static void wait_till_writable_and_add_writer();
+  static void remove_writer();
 };
 
 #endif // SHARE_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP

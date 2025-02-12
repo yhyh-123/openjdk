@@ -27,6 +27,7 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/storage/jfrBuffer.hpp"
+#include "memory/iterator.hpp"
 #include "runtime/threadCrashProtection.hpp"
 #include "runtime/vframe.inline.hpp"
 
@@ -51,6 +52,14 @@ JfrAsyncStackTrace::JfrAsyncStackTrace(JfrAsyncStackFrame* frames, u4 max_frames
   _reached_root(false)
   {}
 
+void JfrAsyncStackTrace::metadata_do(MetadataClosure* f) const {
+  if (_nr_of_frames == 0) {
+    return;
+  }
+  for (u4 i = 0; i < _nr_of_frames; i++) {
+    f->do_metadata(const_cast<Method*>(_frames[i].method()));
+  }
+}
 
 bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
   NoHandleMark nhm;
@@ -93,13 +102,6 @@ bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
       // frame, so this frame is inlined into the caller.
       type = JfrStackFrame::FRAME_INLINE;
     }
-
-    // Tag the klass and the method, so that they are not GCd
-    const InstanceKlass* klass = method->method_holder();
-    SET_METHOD_AND_CLASS_USED_THIS_EPOCH(klass);
-    SET_METHOD_FLAG_USED_THIS_EPOCH(method);
-    assert(METHOD_AND_CLASS_USED_THIS_EPOCH(klass), "invariant");
-    assert(METHOD_FLAG_USED_THIS_EPOCH(method), "invariant");
 
     _frames[count] = JfrAsyncStackFrame(method, bci, type, method->line_number_from_bci(bci));
     count++;

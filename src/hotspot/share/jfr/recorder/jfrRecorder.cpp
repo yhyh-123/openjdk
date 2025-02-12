@@ -49,6 +49,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.inline.hpp"
+#include "memory/iterator.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/globals_extension.hpp"
 #include "utilities/growableArray.hpp"
@@ -477,4 +478,10 @@ bool JfrRecorder::is_recording() {
 
 void JfrRecorder::stop_recording() {
   _post_box->post(MSG_STOP);
+}
+
+void JfrRecorder::metadata_do(MetadataClosure* f) {
+  if (_cpu_time_thread_sampling != nullptr) {
+    _cpu_time_thread_sampling->metadata_do(f);
+  }
 }
