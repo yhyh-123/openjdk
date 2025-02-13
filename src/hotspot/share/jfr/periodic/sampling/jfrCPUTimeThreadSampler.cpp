@@ -24,7 +24,6 @@
 
 #include "gc/shared/barrierSet.hpp"
 #include "memory/resourceArea.hpp"
-#include "precompiled.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"

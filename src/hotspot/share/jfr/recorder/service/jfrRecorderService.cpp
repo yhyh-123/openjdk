@@ -715,20 +715,20 @@ static volatile int _non_safepoint_writers = 0;
 
 void JfrRecorderService::wait_till_no_writers_and_prevent_new_writers() {
   // try to cas -1 into it, when value is 0
-  while (Atomic::cmpxchg(&_non_safepoint_writers, 0, -1) != 0) {}
+  while (Atomic::cmpxchg(&_non_safepoint_writers, 0, -1, atomic_memory_order::memory_order_seq_cst) != 0) {}
 }
 
 void JfrRecorderService::allow_writers() {
-  Atomic::store(&_non_safepoint_writers, 0);
+  Atomic::release_store(&_non_safepoint_writers, 0);
 }
 
 void JfrRecorderService::wait_till_writable_and_add_writer() {
-  int prev = Atomic::load(&_non_safepoint_writers);
+  int prev = Atomic::load_acquire(&_non_safepoint_writers);
   while (true) {
     if (prev == -1) {
       prev = 0;
     }
-    if (Atomic::cmpxchg(&_non_safepoint_writers, prev, prev + 1) == prev) {
+    if (Atomic::cmpxchg(&_non_safepoint_writers, prev, prev + 1, atomic_memory_order::memory_order_seq_cst) == prev) {
       return;
     }
   }
