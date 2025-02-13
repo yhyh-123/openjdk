@@ -22,6 +22,7 @@
  *
  */
 
+#include "memory/iterator.hpp"
 #include "precompiled.hpp"
 #include "classfile/metadataOnStackMark.hpp"
 #include "code/codeCache.hpp"
@@ -48,7 +49,6 @@ NOT_PRODUCT(bool MetadataOnStackMark::_is_active = false;)
 class MetadataOnStackClosure : public MetadataClosure {
   void do_metadata(Metadata* m) { Metadata::mark_on_stack(m); }
 };
-
 // Walk metadata on the stack and mark it so that redefinition doesn't delete
 // it.  Class unloading only deletes in-error class files, methods created by
 // the relocator and dummy constant pools.  None of these appear anywhere except
@@ -64,8 +64,8 @@ MetadataOnStackMark::MetadataOnStackMark(bool walk_all_metadata, bool redefiniti
   Threads::metadata_handles_do(Metadata::mark_on_stack);
 
 #if INCLUDE_JFR
-  MetadataOnStackClosure md_on_stack;
-  Jfr::metadata_do(&md_on_stack);
+  MetadataOnStackClosure closure;
+  Jfr::metadata_do(&closure);
 #endif
 
   if (walk_all_metadata) {

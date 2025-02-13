@@ -22,9 +22,11 @@
  *
  */
 
+#include "gc/shared/barrierSet.hpp"
 #include "memory/resourceArea.hpp"
 #include "precompiled.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/orderAccess.hpp"
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 
 #if defined(LINUX)
@@ -628,7 +630,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
     return;
   }
 
-  Atomic::store(&_enqueue_loop_active, true);
+  Atomic::release_store(&_enqueue_loop_active, true);
 
   while (should_process_trace_queue() && (trace = _queues.filled().dequeue()) != nullptr) {
     JfrRecorderService::wait_till_writable_and_add_writer();
@@ -673,7 +675,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
     JfrRecorderService::remove_writer();
     _queues.fresh().enqueue(trace);
   }
-  Atomic::store(&_enqueue_loop_active, false);
+  Atomic::release_store(&_enqueue_loop_active, false);
 }
 
 void JfrCPUTimeThreadSampler::post_run() {
@@ -956,13 +958,14 @@ void JfrCPUTimeThreadSampler::set_rate(double rate, bool autoadapt) {
 
 void JfrCPUTimeThreadSampler::metadata_do(MetadataClosure* f) {
   printf("metadata_do start\n");
-  Atomic::store(&_should_pause, true);
+  Atomic::release_store(&_should_pause, true);
   while (Atomic::load(&active_recordings) > 0) {
   }
   while (Atomic::load(&_enqueue_loop_active)) {
   }
+  OrderAccess::loadload();
   _queues.metadata_do(f);
-  Atomic::store(&_should_pause, false);
+  Atomic::release_store(&_should_pause, false);
   printf("metadata_do end\n");
 }
 
