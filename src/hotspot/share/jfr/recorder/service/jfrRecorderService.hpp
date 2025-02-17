@@ -34,6 +34,33 @@ class JfrStackTraceRepository;
 class JfrStorage;
 class JfrStringPool;
 
+class JfrRotationLock : public StackObj {
+ private:
+  static const Thread* _owner_thread;
+  static const int retry_wait_millis;
+  static volatile int _lock;
+  Thread* _thread;
+  bool _recursive;
+
+  static bool acquire(Thread* thread);
+
+  // The system can proceed to a safepoint
+  // because even if the thread is a JavaThread,
+  // it is running as _thread_in_native here.
+  void lock();
+
+ public:
+  JfrRotationLock();
+
+  ~JfrRotationLock();
+
+  static bool is_owner();
+
+  bool is_acquired_recursively() const {
+    return _recursive;
+  }
+};
+
 class JfrRecorderService : public StackObj {
   friend class JfrSafepointClearVMOperation;
   friend class JfrSafepointWriteVMOperation;
@@ -64,9 +91,6 @@ class JfrRecorderService : public StackObj {
   void invoke_safepoint_write();
   void post_safepoint_write();
 
-  void wait_till_no_writers_and_prevent_new_writers();
-  void allow_writers();
-
  public:
   JfrRecorderService();
   void start();
@@ -77,9 +101,6 @@ class JfrRecorderService : public StackObj {
   void evaluate_chunk_size_for_rotation();
   void emit_leakprofiler_events(int64_t cutoff_ticks, bool emit_all, bool skip_bfs);
   static bool is_recording();
-
-  static void wait_till_writable_and_add_writer();
-  static void remove_writer();
 };
 
 #endif // SHARE_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP

@@ -632,7 +632,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
   Atomic::release_store(&_enqueue_loop_active, true);
 
   while (should_process_trace_queue() && (trace = _queues.filled().dequeue()) != nullptr) {
-    JfrRecorderService::wait_till_writable_and_add_writer();
+    JfrRotationLock lock;
     // make sure we have enough space in the JFR enqueue buffer
     // create event, convert frames (resolve method ids)
     // we can't do the conversion in the signal handler,
@@ -671,7 +671,6 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       }
     }
     enqueue_buffer = renew_if_full(enqueue_buffer);
-    JfrRecorderService::remove_writer();
     _queues.fresh().enqueue(trace);
   }
   Atomic::release_store(&_enqueue_loop_active, false);
