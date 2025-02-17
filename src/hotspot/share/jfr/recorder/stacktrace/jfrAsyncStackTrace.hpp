@@ -42,9 +42,9 @@ class JfrAsyncStackFrame {
   u2 _methodId;
   // line is a 16 bit value or -1, the -1 case is recorded in the type
   u2 _line;
-  // top bit encodes whether _line is -1 or not
+  // bit 7 encodes whether _line is -1, bit 6 encodes whether _bci is -1
   u1 _type;
-  int _bci;
+  u2 _bci;
   InstanceKlass* _klass;
 
  public:
@@ -59,7 +59,7 @@ class JfrAsyncStackFrame {
   };
 
   u2 methodId() const { return _methodId; }
-  int bci() const { return _bci; }
+  int bci() const;
   u1 type() const;
   int lineno() const;
   InstanceKlass* klass() const { return _klass; }

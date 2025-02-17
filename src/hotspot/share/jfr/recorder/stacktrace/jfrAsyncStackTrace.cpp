@@ -33,7 +33,9 @@
 #include "runtime/vframe.inline.hpp"
 
 JfrAsyncStackFrame::JfrAsyncStackFrame(u2 methodId, int bci, u1 type, int lineno, InstanceKlass* klass) :
-  _methodId(methodId), _line(lineno), _type(type | ((lineno < 0) ? 0x80 : 0)), _bci(bci), _klass(klass) {}
+  _methodId(methodId), _line(lineno), _type(type | ((lineno < 0) ? 0x80 : 0) | (bci < 0 ? 0x70 : 0)), _bci((u2)bci), _klass(klass) {
+    assert(bci >= -1 && bci < 0x10000, "BCI is in expected range");
+  }
 
 int JfrAsyncStackFrame::lineno() const {
   if (_type & 0x80) {
@@ -42,8 +44,15 @@ int JfrAsyncStackFrame::lineno() const {
   return _line;
 }
 
+int JfrAsyncStackFrame::bci() const {
+  if (_type & 0x70) {
+    return -1;
+  }
+  return _bci;
+}
+
 u1 JfrAsyncStackFrame::type() const {
-  return _type & 0x7F;
+  return _type & 0x6F;
 }
 
 JfrAsyncStackTrace::JfrAsyncStackTrace(JfrAsyncStackFrame* frames, u4 max_frames) :
