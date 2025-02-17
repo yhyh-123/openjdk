@@ -84,6 +84,7 @@ private:
 
   static void on_javathread_create(JavaThread* thread);
   static void on_javathread_terminate(JavaThread* thread);
+  void metadata_do(MetadataClosure* f);
 
 #ifdef ASSERT
   static void set_process_queue(bool process_queue);

@@ -1025,6 +1025,9 @@ void JfrCPUTimeThreadSampling::on_javathread_create(JavaThread* thread) {
 void JfrCPUTimeThreadSampling::on_javathread_terminate(JavaThread* thread) {
 }
 
+void JfrCPUTimeThreadSampling::metadata_do(MetadataClosure* f) {
+}
+
 #ifdef ASSERT
 void JfrCPUTimeThreadSampling::set_process_queue(bool process_queue) {}
 #endif
