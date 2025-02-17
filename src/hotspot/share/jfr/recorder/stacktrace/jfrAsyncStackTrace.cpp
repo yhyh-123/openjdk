@@ -27,11 +27,13 @@
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/storage/jfrBuffer.hpp"
 #include "memory/iterator.hpp"
+#include "oops/instanceKlass.hpp"
+#include "oops/klass.hpp"
 #include "runtime/threadCrashProtection.hpp"
 #include "runtime/vframe.inline.hpp"
 
-JfrAsyncStackFrame::JfrAsyncStackFrame(const Method* method, int bci, u1 type, int lineno) :
-  _method(method), _line(lineno), _type(type | ((lineno < 0) ? 0x80 : 0)), _bci(bci) {}
+JfrAsyncStackFrame::JfrAsyncStackFrame(u2 methodId, int bci, u1 type, int lineno, InstanceKlass* klass) :
+  _methodId(methodId), _line(lineno), _type(type | ((lineno < 0) ? 0x80 : 0)), _bci(bci), _klass(klass) {}
 
 int JfrAsyncStackFrame::lineno() const {
   if (_type & 0x80) {
@@ -56,7 +58,7 @@ void JfrAsyncStackTrace::metadata_do(MetadataClosure* f) const {
     return;
   }
   for (u4 i = 0; i < _nr_of_frames; i++) {
-    f->do_metadata(const_cast<Method*>(_frames[i].method()));
+    f->do_metadata(_frames[i].klass());
   }
 }
 
@@ -102,7 +104,7 @@ bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
       type = JfrStackFrame::FRAME_INLINE;
     }
 
-    _frames[count] = JfrAsyncStackFrame(method, bci, type, method->line_number_from_bci(bci));
+    _frames[count] = JfrAsyncStackFrame(method->orig_method_idnum(), bci, type, method->line_number_from_bci(bci), method->method_holder());
     count++;
   }
   _nr_of_frames = count;
@@ -118,16 +120,17 @@ bool JfrAsyncStackTrace::store(JfrStackTrace* trace) const {
   traceid hash = 1;
   for (u4 i = 0; i < _nr_of_frames; i++) {
     const JfrAsyncStackFrame& frame = _frames[i];
-    if (!Method::is_valid_method(frame.method())) {
+    Method* method = frame.klass()->method_with_orig_idnum(frame.methodId());
+    if (!Method::is_valid_method(method)) {
       // we throw away everything we've gathered in this sample since
       // none of it is safe
       return false;
     }
-    const traceid mid = JfrTraceId::load(frame.method());
+    const traceid mid = JfrTraceId::load(method);
     hash = (hash * 31) + mid;
     hash = (hash * 31) + frame.bci();
     hash = (hash * 31) + frame.type();
-    trace->_frames[i] = JfrStackFrame(mid, frame.bci(), frame.type(), frame.lineno(), frame.method()->method_holder());
+    trace->_frames[i] = JfrStackFrame(mid, frame.bci(), frame.type(), frame.lineno(), frame.klass());
   }
   trace->set_hash(hash);
   trace->_lineno = true;

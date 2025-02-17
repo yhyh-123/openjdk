@@ -956,7 +956,6 @@ void JfrCPUTimeThreadSampler::set_rate(double rate, bool autoadapt) {
 }
 
 void JfrCPUTimeThreadSampler::metadata_do(MetadataClosure* f) {
-  printf("metadata_do start\n");
   Atomic::release_store(&_should_pause, true);
   while (Atomic::load(&active_recordings) > 0) {
   }
@@ -965,7 +964,6 @@ void JfrCPUTimeThreadSampler::metadata_do(MetadataClosure* f) {
   OrderAccess::loadload();
   _queues.metadata_do(f);
   Atomic::release_store(&_should_pause, false);
-  printf("metadata_do end\n");
 }
 
 void JfrCPUTimeThreadSampler::update_all_thread_timers() {

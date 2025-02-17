@@ -39,15 +39,16 @@ class MetadataClosure;
 
 class JfrAsyncStackFrame {
  private:
-  const Method* _method;
+  u2 _methodId;
   // line is a 16 bit value or -1, the -1 case is recorded in the type
   u2 _line;
   // top bit encodes whether _line is -1 or not
   u1 _type;
   int _bci;
+  InstanceKlass* _klass;
 
  public:
-  JfrAsyncStackFrame(const Method* _method, int bci, u1 type, int lineno);
+  JfrAsyncStackFrame(u2 methodId, int bci, u1 type, int lineno, InstanceKlass* klass);
 
   enum : u1 {
     FRAME_INTERPRETER = 0,
@@ -57,10 +58,11 @@ class JfrAsyncStackFrame {
     NUM_FRAME_TYPES
   };
 
-  const Method *method() const { return _method; }
+  u2 methodId() const { return _methodId; }
   int bci() const { return _bci; }
   u1 type() const;
   int lineno() const;
+  InstanceKlass* klass() const { return _klass; }
 };
 
 class JfrAsyncStackTraceStoreCallback;
