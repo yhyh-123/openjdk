@@ -39,12 +39,12 @@ class MetadataClosure;
 
 class JfrAsyncStackFrame {
  private:
+  // this could be optimized, by restricting the line to 2**24
+  // and storing the bci in 17 bits, reducing the type to 4 bits
   u2 _methodId;
-  // line is a 16 bit value or -1, the -1 case is recorded in the type
-  u2 _line;
-  // bit 7 encodes whether _line is -1, bit 6 encodes whether _bci is -1
   u1 _type;
-  u2 _bci;
+  int _bci;
+  int _line;
   InstanceKlass* _klass;
 
  public:
