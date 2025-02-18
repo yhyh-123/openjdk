@@ -632,42 +632,44 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
   Atomic::release_store(&_enqueue_loop_active, true);
 
   while (should_process_trace_queue() && (trace = _queues.filled().dequeue()) != nullptr) {
-    JfrRotationLock lock;
-    // make sure we have enough space in the JFR enqueue buffer
-    // create event, convert frames (resolve method ids)
-    // we can't do the conversion in the signal handler,
-    // as this causes segmentation faults related to the
-    // enqueue buffers
-    EventCPUTimeSample event;
-    event.set_failed(true);
-    if (trace->successful() && trace->stacktrace().nr_of_frames() > 0) {
-      JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
-      if (trace->stacktrace().store(&jfrTrace) && jfrTrace.nr_of_frames() > 0) {
-        traceid id = JfrStackTraceRepository::add(jfrTrace);
-        event.set_stackTrace(id);
-        event.set_failed(false);
+    {
+      JfrRotationLock lock;
+      // make sure we have enough space in the JFR enqueue buffer
+      // create event, convert frames (resolve method ids)
+      // we can't do the conversion in the signal handler,
+      // as this causes segmentation faults related to the
+      // enqueue buffers
+      EventCPUTimeSample event;
+      event.set_failed(true);
+      if (trace->successful() && trace->stacktrace().nr_of_frames() > 0) {
+        JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
+        if (trace->stacktrace().store(&jfrTrace) && jfrTrace.nr_of_frames() > 0) {
+          traceid id = JfrStackTraceRepository::add(jfrTrace);
+          event.set_stackTrace(id);
+          event.set_failed(false);
+        } else {
+          event.set_stackTrace(0);
+        }
       } else {
         event.set_stackTrace(0);
       }
-    } else {
-      event.set_stackTrace(0);
-    }
-    event.set_starttime(trace->start_time());
-    event.set_endtime(trace->end_time());
-    event.set_samplingPeriod(Ticks(trace->sampling_period() / 1000000000.0 * JfrTime::frequency()) - Ticks(0));
+      event.set_starttime(trace->start_time());
+      event.set_endtime(trace->end_time());
+      event.set_samplingPeriod(Ticks(trace->sampling_period() / 1000000000.0 * JfrTime::frequency()) - Ticks(0));
 
-    if (EventCPUTimeSample::is_enabled()) {
-      JFRRecordSampledThreadCallback cb(trace->sampled_thread());
-      ThreadCrashProtection crash_protection;
-      if (crash_protection.call(cb)) {
-        event.set_eventThread(cb._thread_id);
-        event.commit();
-        count++;
-        if (count % 10000 == 0) {
-          log_trace(jfr)("CPU thread sampler count %d\n", (int) count);
+      if (EventCPUTimeSample::is_enabled()) {
+        JFRRecordSampledThreadCallback cb(trace->sampled_thread());
+        ThreadCrashProtection crash_protection;
+        if (crash_protection.call(cb)) {
+          event.set_eventThread(cb._thread_id);
+          event.commit();
+          count++;
+          if (count % 10000 == 0) {
+            log_trace(jfr)("CPU thread sampler count %d\n", (int) count);
+          }
+        } else {
+          log_trace(jfr)("Couldn't obtain thread id\n");
         }
-      } else {
-        log_trace(jfr)("Couldn't obtain thread id\n");
       }
     }
     enqueue_buffer = renew_if_full(enqueue_buffer);
