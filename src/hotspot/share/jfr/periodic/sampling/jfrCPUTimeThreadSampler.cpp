@@ -728,7 +728,7 @@ void JfrCPUTimeThreadSampling::create_sampler(double rate, bool autoadapt) {
   // or too little elements in the queue, as we only have
   // one thread that processes the queue
   int64_t period_millis = compute_sampling_period(rate) / 1000000;
-  int queue_size = 20 * os::processor_count() / (period_millis > 9 ? 2 : 1);
+  int queue_size = 40 * os::processor_count() / (period_millis > 9 ? 2 : 1);
   // the queue should not be larger a factor of 4 of the max chunk size
   // so that it usually can be processed in one go without
   // allocating a new chunk

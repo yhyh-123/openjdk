@@ -132,7 +132,7 @@ bool JfrAsyncStackTrace::store(JfrStackTrace* trace) const {
     hash = (hash * 31) + mid;
     hash = (hash * 31) + frame.bci();
     hash = (hash * 31) + frame.type();
-    trace->_frames[i] = JfrStackFrame(mid, frame.bci(), frame.type(), frame.lineno(), frame.klass());
+    trace->_frames[i] = JfrStackFrame(mid, frame.bci(), frame.type(), frame.lineno(), method->method_holder());
   }
   trace->set_hash(hash);
   trace->_lineno = true;
