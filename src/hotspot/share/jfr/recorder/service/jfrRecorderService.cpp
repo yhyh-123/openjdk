@@ -71,13 +71,16 @@ bool JfrRotationLock::acquire(Thread* thread) {
 // because even if the thread is a JavaThread,
 // it is running as _thread_in_native here.
 bool JfrRotationLock::lock(int retries) {
+  if (_obtained_lock) {
+      return true;
+  }
   assert(!is_owner(), "invariant");
   int retry_count = 0;
   while (!acquire(_thread)) {
-    os::naked_short_sleep(_retry_wait_millis);
     if (++retry_count > retries && retries > 0) {
       return false;
     }
+    os::naked_short_sleep(_retry_wait_millis);
   }
   assert(is_owner(), "invariant");
   _obtained_lock = true;
@@ -100,13 +103,10 @@ JfrRotationLock::JfrRotationLock(bool lock_directly, int retry_wait_millis) : _r
 }
 
 JfrRotationLock::~JfrRotationLock() {
-  if (!_obtained_lock) {
+  if (!_obtained_lock || _recursive) {
     return;
   }
   assert(is_owner(), "invariant");
-  if (_recursive) {
-    return;
-  }
   _owner_thread = nullptr;
   OrderAccess::storestore();
   _lock = 0;
