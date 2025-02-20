@@ -452,7 +452,8 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   void autoadapt_period_if_needed();
 
   bool should_process_trace_queue();
-  void process_trace_queue();
+  // returns whether it returned normally and not because of lock contention
+  bool process_trace_queue();
 
   void set_rate(double rate, bool autoadapt);
   int64_t get_sampling_period() const { return Atomic::load(&_current_sampling_period_ns); };
@@ -580,13 +581,17 @@ void JfrCPUTimeThreadSampler::run() {
     }
 
     // process all filled traces
-    process_trace_queue();
-
-    int64_t sleep_to_next = period_nanos / os::processor_count() / 2;
-    if (sleep_to_next >= NANOSECS_PER_SEC) {
-      sleep_to_next = NANOSECS_PER_SEC - 1;
+    if (process_trace_queue()) {
+      int64_t sleep_to_next = period_nanos / os::processor_count() / 2;
+      if (sleep_to_next >= NANOSECS_PER_SEC) {
+        sleep_to_next = NANOSECS_PER_SEC - 1;
+      }
+      os::naked_short_nanosleep(sleep_to_next);
+    } else {
+      // lock contention, so make sure to sleep to allow other
+      // threads to finish
+      os::naked_sleep(10);
     }
-    os::naked_short_nanosleep(sleep_to_next);
   }
 }
 
@@ -620,14 +625,14 @@ bool JfrCPUTimeThreadSampler::should_process_trace_queue() {
 #endif
 }
 
-void JfrCPUTimeThreadSampler::process_trace_queue() {
+bool JfrCPUTimeThreadSampler::process_trace_queue() {
   JfrCPUTimeTrace* trace;
   const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
   assert(enqueue_buffer != nullptr, "invariant");
   enqueue_buffer = renew_if_full(enqueue_buffer);
 
   if (!should_process_trace_queue()) {
-    return;
+    return true;
   }
 
   Atomic::release_store(&_enqueue_loop_active, true);
@@ -690,10 +695,14 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
         lock_contention_loss_count++;
       }
     }
-    enqueue_buffer = renew_if_full(enqueue_buffer);
+    if (!stop) {
+      // only renew the buffer if we did enqueue or commit anything
+      enqueue_buffer = renew_if_full(enqueue_buffer);
+    }
     _queues.fresh().enqueue(trace);
   }
   Atomic::release_store(&_enqueue_loop_active, false);
+  return !stop;
 }
 
 void JfrCPUTimeThreadSampler::post_run() {
