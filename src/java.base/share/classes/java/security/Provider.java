@@ -1863,6 +1863,14 @@ public abstract class Provider extends Properties {
      * specified type of this algorithm or alias. If no such
      * implementation exists, this method returns {@code null}.
      *
+     * @implNote
+     * The JDK Reference Implementation additionally uses the
+     * {@code jdk.security.providers.filter}
+     * {@link System#getProperty(String) System} and
+     * {@link Security#getProperty(String) Security} properties to determine
+     * which services are enabled. A service that is not enabled by the filter
+     * will not make its described implementation available.
+     *
      * @param type the type of {@link Service service} requested
      * (for example, {@code MessageDigest})
      * @param algorithm the case-insensitive algorithm name (or alternate
@@ -1910,6 +1918,14 @@ public abstract class Provider extends Properties {
      * Get an unmodifiable Set of all services supported by
      * this {@code Provider}.
      *
+     * @implNote
+     * The JDK Reference Implementation additionally uses the
+     * {@code jdk.security.providers.filter}
+     * {@link System#getProperty(String) System} and
+     * {@link Security#getProperty(String) Security} properties to determine
+     * which services are enabled. A service that is not enabled by the filter
+     * will not be included in the Set.
+     *
      * @return an unmodifiable Set of all services supported by
      * this {@code Provider}
      *
@@ -1940,6 +1956,14 @@ public abstract class Provider extends Properties {
      * places information about this service in the provider's Hashtable
      * values in the format described in the {@extLink security_guide_jca
      * Java Cryptography Architecture (JCA) Reference Guide}.
+     *
+     * @implNote
+     * The JDK Reference Implementation additionally uses the
+     * {@code jdk.security.providers.filter}
+     * {@link System#getProperty(String) System} and
+     * {@link Security#getProperty(String) Security} properties to determine
+     * which services are enabled. A service that is not enabled by the filter
+     * will not be added.
      *
      * @param s the Service to add
      *
