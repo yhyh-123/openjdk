@@ -36,21 +36,26 @@ class JfrStringPool;
 
 class JfrRotationLock : public StackObj {
  private:
+  int _retry_wait_millis;
   static const Thread* _owner_thread;
-  static const int retry_wait_millis;
+  static const int default_retry_wait_millis;
   static volatile int _lock;
   Thread* _thread;
   bool _recursive;
 
   static bool acquire(Thread* thread);
 
+
+
+ public:
+  JfrRotationLock() : JfrRotationLock(true, default_retry_wait_millis) {}
+  JfrRotationLock(bool lock_directly, int retry_wait_millis = default_retry_wait_millis);
+
   // The system can proceed to a safepoint
   // because even if the thread is a JavaThread,
   // it is running as _thread_in_native here.
-  void lock();
-
- public:
-  JfrRotationLock();
+  // Only call this method directly if you haven't locked before
+  bool lock(int retries);
 
   ~JfrRotationLock();
 

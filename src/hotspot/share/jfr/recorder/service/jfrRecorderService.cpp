@@ -70,14 +70,20 @@ bool JfrRotationLock::acquire(Thread* thread) {
 // The system can proceed to a safepoint
 // because even if the thread is a JavaThread,
 // it is running as _thread_in_native here.
-void JfrRotationLock::lock() {
+bool JfrRotationLock::lock(int retries) {
+  assert(!is_owner(), "invariant");
+  int retry_count = 0;
   while (!acquire(_thread)) {
-    os::naked_short_sleep(retry_wait_millis);
+    os::naked_short_sleep(_retry_wait_millis);
+    if (++retry_count > retries && retries > 0) {
+      return false;
+    }
   }
   assert(is_owner(), "invariant");
+  return true;
 }
 
-JfrRotationLock::JfrRotationLock() : _thread(Thread::current()), _recursive(false) {
+JfrRotationLock::JfrRotationLock(bool lock_directly, int retry_wait_millis) : _retry_wait_millis(retry_wait_millis), _thread(Thread::current()), _recursive(false) {
   assert(_thread != nullptr, "invariant");
   if (_thread == _owner_thread) {
     // Recursive case is not supported.
@@ -87,7 +93,9 @@ JfrRotationLock::JfrRotationLock() : _thread(Thread::current()), _recursive(fals
     log_info(jfr)("Unable to issue rotation due to recursive calls.");
     return;
   }
-  lock();
+  if (lock_directly) {
+    lock(-1);
+  }
 }
 
 JfrRotationLock::~JfrRotationLock() {
@@ -105,7 +113,7 @@ bool JfrRotationLock::is_owner() {
 }
 
 const Thread* JfrRotationLock::_owner_thread = nullptr;
-const int JfrRotationLock::retry_wait_millis = 10;
+const int JfrRotationLock::default_retry_wait_millis = 10;
 volatile int JfrRotationLock::_lock = 0;
 
 // Reset thread local state used for object allocation sampling.

@@ -609,6 +609,7 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 
 
 static size_t count = 0;
+static size_t lock_contention_loss_count = 0;
 
 
 bool JfrCPUTimeThreadSampler::should_process_trace_queue() {
@@ -631,45 +632,62 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
 
   Atomic::release_store(&_enqueue_loop_active, true);
 
-  while (should_process_trace_queue() && (trace = _queues.filled().dequeue()) != nullptr) {
+  bool stop = false;
+
+  while (!stop && should_process_trace_queue() && (trace = _queues.filled().dequeue()) != nullptr) {
     {
-      JfrRotationLock lock;
-      // make sure we have enough space in the JFR enqueue buffer
-      // create event, convert frames (resolve method ids)
-      // we can't do the conversion in the signal handler,
-      // as this causes segmentation faults related to the
-      // enqueue buffers
-      EventCPUTimeSample event;
-      event.set_failed(true);
-      if (trace->successful() && trace->stacktrace().nr_of_frames() > 0) {
-        JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
-        if (trace->stacktrace().store(&jfrTrace) && jfrTrace.nr_of_frames() > 0) {
-          traceid id = JfrStackTraceRepository::add(jfrTrace);
-          event.set_stackTrace(id);
-          event.set_failed(false);
+      JfrRotationLock lock(false, 1); // don't lock automatically
+      if (lock.lock(1)) {
+        // we aquired the lock, all good
+
+        // make sure we have enough space in the JFR enqueue buffer
+        // create event, convert frames (resolve method ids)
+        // we can't do the conversion in the signal handler,
+        // as this causes segmentation faults related to the
+        // enqueue buffers
+        EventCPUTimeSample event;
+        event.set_failed(true);
+        if (trace->successful() && trace->stacktrace().nr_of_frames() > 0) {
+          JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
+          if (trace->stacktrace().store(&jfrTrace) && jfrTrace.nr_of_frames() > 0) {
+            traceid id = JfrStackTraceRepository::add(jfrTrace);
+            event.set_stackTrace(id);
+            event.set_failed(false);
+          } else {
+            event.set_stackTrace(0);
+          }
         } else {
           event.set_stackTrace(0);
         }
-      } else {
-        event.set_stackTrace(0);
-      }
-      event.set_starttime(trace->start_time());
-      event.set_endtime(trace->end_time());
-      event.set_samplingPeriod(Ticks(trace->sampling_period() / 1000000000.0 * JfrTime::frequency()) - Ticks(0));
+        event.set_starttime(trace->start_time());
+        event.set_endtime(trace->end_time());
+        event.set_samplingPeriod(Ticks(trace->sampling_period() / 1000000000.0 * JfrTime::frequency()) - Ticks(0));
 
-      if (EventCPUTimeSample::is_enabled()) {
-        JFRRecordSampledThreadCallback cb(trace->sampled_thread());
-        ThreadCrashProtection crash_protection;
-        if (crash_protection.call(cb)) {
-          event.set_eventThread(cb._thread_id);
-          event.commit();
-          count++;
-          if (count % 10000 == 0) {
-            log_trace(jfr)("CPU thread sampler count %d\n", (int) count);
+        if (EventCPUTimeSample::is_enabled()) {
+          JFRRecordSampledThreadCallback cb(trace->sampled_thread());
+          ThreadCrashProtection crash_protection;
+          if (crash_protection.call(cb)) {
+            event.set_eventThread(cb._thread_id);
+            event.commit();
+            count++;
+            if (count % 10000 == 0) {
+              log_info(jfr)("CPU thread sampler count %d; lock contention loss %d; queue loss (includes lock contention) %d\n", (int) count, (int) lock_contention_loss_count, (int) Atomic::load(&_ignore_because_queue_full_sum));
+            }
+          } else {
+            log_trace(jfr)("Couldn't obtain thread id\n");
           }
-        } else {
-          log_trace(jfr)("Couldn't obtain thread id\n");
         }
+      } else {
+        // we didn't get the lock
+        // note this down as a loss and break out of the loop
+        // this doesn't happen often, but it can happen
+        //
+        // without this weak locking, we can cause a deadlock
+        // this might happen because running this loop prevents the GC from progressing in the metadata_do method.
+        // when the GC runs at the safepoint induced by the JFR recorder (which obtains the lock we're waiting for)
+        Atomic::inc(&_ignore_because_queue_full);
+        stop = true;
+        lock_contention_loss_count++;
       }
     }
     enqueue_buffer = renew_if_full(enqueue_buffer);
@@ -728,7 +746,7 @@ void JfrCPUTimeThreadSampling::create_sampler(double rate, bool autoadapt) {
   // or too little elements in the queue, as we only have
   // one thread that processes the queue
   int64_t period_millis = compute_sampling_period(rate) / 1000000;
-  int queue_size = 40 * os::processor_count() / (period_millis > 9 ? 2 : 1);
+  int queue_size = 20 * os::processor_count() / (period_millis > 9 ? 2 : 1);
   // the queue should not be larger a factor of 4 of the max chunk size
   // so that it usually can be processed in one go without
   // allocating a new chunk
