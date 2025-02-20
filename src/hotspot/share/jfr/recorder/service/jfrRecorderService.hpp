@@ -42,10 +42,9 @@ class JfrRotationLock : public StackObj {
   static volatile int _lock;
   Thread* _thread;
   bool _recursive;
+  bool _obtained_lock;
 
   static bool acquire(Thread* thread);
-
-
 
  public:
   JfrRotationLock() : JfrRotationLock(true, default_retry_wait_millis) {}

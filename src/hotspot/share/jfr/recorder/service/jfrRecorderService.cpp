@@ -80,10 +80,11 @@ bool JfrRotationLock::lock(int retries) {
     }
   }
   assert(is_owner(), "invariant");
+  _obtained_lock = true;
   return true;
 }
 
-JfrRotationLock::JfrRotationLock(bool lock_directly, int retry_wait_millis) : _retry_wait_millis(retry_wait_millis), _thread(Thread::current()), _recursive(false) {
+JfrRotationLock::JfrRotationLock(bool lock_directly, int retry_wait_millis) : _retry_wait_millis(retry_wait_millis), _thread(Thread::current()), _recursive(false), _obtained_lock(false) {
   assert(_thread != nullptr, "invariant");
   if (_thread == _owner_thread) {
     // Recursive case is not supported.
@@ -99,6 +100,9 @@ JfrRotationLock::JfrRotationLock(bool lock_directly, int retry_wait_millis) : _r
 }
 
 JfrRotationLock::~JfrRotationLock() {
+  if (!_obtained_lock) {
+    return;
+  }
   assert(is_owner(), "invariant");
   if (_recursive) {
     return;
