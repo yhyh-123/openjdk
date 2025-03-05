@@ -1643,9 +1643,6 @@ class StubGenerator: public StubCodeGenerator {
   //    c_rarg1   - byte count (size_t)
   //    c_rarg2   - byte value
   //
-  // Examines the alignment of the operands and dispatches
-  // to an int, short, or byte fill loop.
-  //
   address generate_unsafe_setmemory(address unsafe_byte_fill) {
     __ align(CodeEntryAlignment);
     StubGenStubId stub_id = StubGenStubId::unsafe_setmemory_id;
@@ -1659,19 +1656,14 @@ class StubGenerator: public StubCodeGenerator {
     inc_counter_np(SharedRuntime::_unsafe_set_memory_ctr);
 
     {
-      Label L_exit, L_fillBytes;
+      Label L_exit;
 
       const Register dest = c_rarg0;
       const Register size = c_rarg1;
       const Register byteVal = c_rarg2;
+
       __ beqz(size, L_exit);
-      __ j(L_fillBytes);
 
-      __ BIND(L_exit);
-      __ leave();
-      __ ret();
-
-      __ BIND(L_fillBytes);
       // exchange value of c_rarg1 and c_rarg2 with xorr
       __ xorr(c_rarg1, c_rarg1, c_rarg2);
       __ xorr(c_rarg2, c_rarg1, c_rarg2);
@@ -1679,6 +1671,10 @@ class StubGenerator: public StubCodeGenerator {
 
       __ leave();    // Clear effect of enter()
       __ j(RuntimeAddress(unsafe_byte_fill));
+
+      __ BIND(L_exit);
+      __ leave();
+      __ ret();
     }
 
     return start;
