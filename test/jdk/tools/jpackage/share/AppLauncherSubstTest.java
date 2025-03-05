@@ -125,9 +125,7 @@ public class AppLauncherSubstTest {
                 .setExecutable(cmd.appLauncherPath().toAbsolutePath())
                 .addArguments("--print-sys-prop=" + TEST_PROP);
 
-        spec.env().forEach((envVarName, envVarValue) -> {
-            launcherExec.setEnvVar(envVarName, envVarValue);
-        });
+        spec.env().forEach(launcherExec::setEnvVar);
 
         final var resolvedExpectedStr = spec.resolveExpectedStr(cmd);
         final var actualStr = configureAndExecute(0, launcherExec).getFirstLineOfOutput().substring((TEST_PROP + "=").length());
