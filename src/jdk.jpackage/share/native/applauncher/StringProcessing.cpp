@@ -126,8 +126,7 @@ tstring stringify(const TokenizedString& tokens) {
     for (; it != end; ++it) {
         if (it->type() == ESCAPED_CHAR) {
             ss << it->value().substr(1);
-        }
-        else {
+        } else {
             ss << it->value();
         }
     }
