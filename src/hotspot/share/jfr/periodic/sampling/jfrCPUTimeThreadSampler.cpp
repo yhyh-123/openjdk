@@ -605,11 +605,16 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
     _thread(thread) {
   }
   virtual void call() {
+    if (_thread->is_exiting()) {
+      return;
+    }
     _thread_id = JfrThreadLocal::thread_id(_thread);
+    _valid = true;
   }
  private:
   JavaThread* _thread;
   traceid _thread_id;
+  bool _valid = false;
 };
 
 
@@ -671,7 +676,7 @@ bool JfrCPUTimeThreadSampler::process_trace_queue() {
         if (EventCPUTimeSample::is_enabled()) {
           JFRRecordSampledThreadCallback cb(trace->sampled_thread());
           ThreadCrashProtection crash_protection;
-          if (crash_protection.call(cb)) {
+          if (crash_protection.call(cb) && cb._valid) {
             event.set_eventThread(cb._thread_id);
             event.commit();
             count++;
