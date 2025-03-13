@@ -624,10 +624,11 @@ static size_t lock_contention_loss_count = 0;
 
 bool JfrCPUTimeThreadSampler::should_process_trace_queue() {
 #ifdef ASSERT
-  return Atomic::load(&_process_queue) && !Atomic::load(&_should_pause);
+  bool could_potentially_run = Atomic::load_acquire(&_process_queue);
 #else
-  return true;
+  bool could_potentially_run = true;
 #endif
+  return could_potentially_run && !Atomic::load_acquire(&_should_pause);
 }
 
 bool JfrCPUTimeThreadSampler::process_trace_queue() {
@@ -841,7 +842,7 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(siginfo_t* info, void* context
   if (jt == nullptr) {
     return;
   }
-  if (Atomic::load(&_should_pause)) {
+  if (Atomic::load_acquire(&_should_pause)) {
     // TODO: needed?
     return;
   }
@@ -850,7 +851,7 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(siginfo_t* info, void* context
     // the sampling period might be too low for the current Linux configuration
     // so samples might be skipped and we have to compute the actual period
     int64_t period = get_sampling_period() * (info->si_overrun + 1);
-    trace->record_trace(jt, context, period, Atomic::load(&_should_pause));
+    trace->record_trace(jt, context, period, Atomic::load_acquire(&_should_pause));
     this->_queues.filled().enqueue(trace);
   } else {
     Atomic::inc(&_ignore_because_queue_full);
@@ -990,9 +991,9 @@ void JfrCPUTimeThreadSampler::set_rate(double rate, bool autoadapt) {
 
 void JfrCPUTimeThreadSampler::metadata_do(MetadataClosure* f) {
   Atomic::release_store(&_should_pause, true);
-  while (Atomic::load(&active_recordings) > 0) {
+  while (Atomic::load_acquire(&active_recordings) > 0) {
   }
-  while (Atomic::load(&_enqueue_loop_active)) {
+  while (Atomic::load_acquire(&_enqueue_loop_active)) {
   }
   OrderAccess::loadload();
   _queues.metadata_do(f);
