@@ -287,12 +287,13 @@ public:
   }
 
   bool enqueue(JfrCPUTimeTrace* trace) {
-    while (true) {
+    int count = 10000;
+    while (count -- > 0) {
       u4 tail = Atomic::load_acquire(&_tail);
       Element* e = element(tail);
       u4 state = Atomic::load_acquire(&e->_state);
       if (state == state_empty(tail)) {
-        if (Atomic::cmpxchg(&_tail, tail, tail + 1) == tail) {
+        if (Atomic::cmpxchg(&_tail, tail, tail + 1, memory_order_seq_cst) == tail) {
             e->_trace = trace;
             // Mark element as full in current generation
             Atomic::release_store(&e->_state, state_full(tail));
@@ -304,15 +305,20 @@ public:
         return false;
       }
     }
+    printf("JfrTraceQueue::enqueue failed\n");
+    return false;
   }
 
+  volatile u4 _dropped_because_endless = 0;
+
   JfrCPUTimeTrace* dequeue() {
-    while (true) {
+    int count = 10000;
+    while (count-- > 0) {
       u4 head = Atomic::load_acquire(&_head);
       Element* e = element(head);
       u4 state = Atomic::load_acquire(&e->_state);
       if (state == state_full(head)) {
-        if (Atomic::cmpxchg(&_head, head, head + 1) == head) {
+        if (Atomic::cmpxchg(&_head, head, head + 1, memory_order_seq_cst) == head) {
             JfrCPUTimeTrace* trace = e->_trace;
             // After taking an element, mark it as empty in the next generation,
             // so we can reuse it again after completing the full circle
@@ -325,6 +331,11 @@ public:
         // Producer has not yet completed transaction
       }
     }
+    Atomic::inc(&_dropped_because_endless);
+    u4 head = Atomic::load_acquire(&_head);
+    auto head_state = Atomic::load_acquire(&element(head)->_state);
+    printf("JfrTraceQueue::dequeue failed: head: %d, tail: %d is_full: %d is_empty: %d   count %d \n", head, Atomic::load(&_tail), head_state == state_full(head), head_state == state_empty(head), Atomic::load(&_dropped_because_endless));
+    return nullptr; // prevent hanging
   }
 
   void reset() {
