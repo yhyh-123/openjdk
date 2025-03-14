@@ -308,6 +308,8 @@ public:
     return false;
   }
 
+  u4 _mark_count = 0;
+
   JfrCPUTimeTrace* dequeue() {
     int count = 1000;
     while (count-- > 0) {
@@ -326,6 +328,12 @@ public:
         return nullptr; // Queue is empty
       } else {
         // Producer has not yet completed transaction
+        // mark it as empty to prevent stalling
+        if (count < 500) {
+          Atomic::inc(&_mark_count);
+          printf("mark count: %d\n", Atomic::load(&_mark_count));
+          Atomic::release_store(&e->_state, state_empty(head));
+        }
       }
     }
     return nullptr; // prevent hanging
