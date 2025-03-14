@@ -305,14 +305,11 @@ public:
         return false;
       }
     }
-    printf("JfrTraceQueue::enqueue failed\n");
     return false;
   }
 
-  volatile u4 _dropped_because_endless = 0;
-
   JfrCPUTimeTrace* dequeue() {
-    int count = 10000;
+    int count = 1000;
     while (count-- > 0) {
       u4 head = Atomic::load_acquire(&_head);
       Element* e = element(head);
@@ -331,10 +328,6 @@ public:
         // Producer has not yet completed transaction
       }
     }
-    Atomic::inc(&_dropped_because_endless);
-    u4 head = Atomic::load_acquire(&_head);
-    auto head_state = Atomic::load_acquire(&element(head)->_state);
-    printf("JfrTraceQueue::dequeue failed: head: %d, tail: %d is_full: %d is_empty: %d   count %d \n", head, Atomic::load(&_tail), head_state == state_full(head), head_state == state_empty(head), Atomic::load(&_dropped_because_endless));
     return nullptr; // prevent hanging
   }
 
