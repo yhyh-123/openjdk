@@ -855,7 +855,6 @@ void JfrCPUTimeThreadSampling::handle_timer_signal(siginfo_t* info, void* contex
 }
 
 void JfrCPUTimeThreadSampler::handle_timer_signal(siginfo_t* info, void* context) {
-  NoResourceMark rm;
   JavaThread* jt = get_java_thread_if_valid();
   if (jt == nullptr) {
     return;
@@ -864,6 +863,7 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(siginfo_t* info, void* context
     // TODO: needed?
     return;
   }
+  NoResourceMark rm;
   JfrCPUTimeTrace* trace = this->_queues.fresh().dequeue();
   if (trace != nullptr) {
     // the sampling period might be too low for the current Linux configuration
