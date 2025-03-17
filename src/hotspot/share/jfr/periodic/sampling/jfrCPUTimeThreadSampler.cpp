@@ -357,16 +357,22 @@ public:
     if (tail > head) {
       for (u4 i = head; i < tail; i++) {
         Element* e = element(i);
-        e->_trace->metadata_do(f);
+        if (e->_state == state_full(i)) {
+          e->_trace->metadata_do(f);
+        }
       }
     } else {
       for (u4 i = _head; i < _capacity; i++) {
         Element* e = element(i);
-        e->_trace->metadata_do(f);
+        if (e->_state == state_full(i)) {
+          e->_trace->metadata_do(f);
+        }
       }
       for (u4 i = 0; i < _tail; i++) {
         Element* e = element(i);
-        e->_trace->metadata_do(f);
+        if (e->_state == state_full(i)) {
+          e->_trace->metadata_do(f);
+        }
       }
     }
   }
