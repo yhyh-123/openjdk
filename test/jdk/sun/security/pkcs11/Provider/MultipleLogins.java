@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8240256 8269034
- * @summary Testing logins with multiple security providers 
+ * @summary Testing logins with multiple security providers
  * @library /test/lib/ /sun/security/pkcs11/
  * @modules jdk.crypto.cryptoki/sun.security.pkcs11
  * @run main/othervm
