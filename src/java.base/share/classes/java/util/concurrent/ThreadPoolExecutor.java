@@ -1311,19 +1311,27 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
          * thread.  If it fails, we know we are shut down or saturated
          * and so reject the task.
          */
+        // 1. 核心线程优先
         int c = ctl.get();
         if (workerCountOf(c) < corePoolSize) {
             if (addWorker(command, true))
                 return;
             c = ctl.get();
         }
+        // 2. 任务入队 & 状态二次检查
+        // 2.1 尝试把任务放入 任务队列
         if (isRunning(c) && workQueue.offer(command)) {
+            // 2.1.1 如果入队成功，还要二次检查线程池状态
             int recheck = ctl.get();
+            // 2.1.2  如果线程池已停止，则从队列移除任务并执行拒绝策略 reject(command)。
             if (! isRunning(recheck) && remove(command))
                 reject(command);
+            // 2.1.3 如果线程池仍运行，但所有线程都挂了（workerCountOf(recheck) == 0），则补一个 非核心线程 来保证队列任务被消费
             else if (workerCountOf(recheck) == 0)
                 addWorker(null, false);
         }
+        // 3. 队列满 & 扩容线程
+        // 3.1 如果队列塞不下任务，就尝试创建 非核心线程（maximumPoolSize 范围内）
         else if (!addWorker(command, false))
             reject(command);
     }
