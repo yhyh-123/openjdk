@@ -37,6 +37,7 @@ package java.util.concurrent;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.Objects;
 
 /**
@@ -211,7 +212,7 @@ public enum TimeUnit {
      * or {@code Long.MIN_VALUE} if conversion would negatively overflow,
      * or {@code Long.MAX_VALUE} if it would positively overflow.
      * @throws NullPointerException if {@code duration} is null
-     * @see Duration#of(long,TemporalUnit)
+     * @see Duration#of(long, TemporalUnit)
      * @since 11
      */
     public long convert(Duration duration) {
@@ -241,6 +242,7 @@ public enum TimeUnit {
     }
 
     /**
+     * 将 duration 转成纳秒
      * Equivalent to
      * {@link #convert(long, TimeUnit) NANOSECONDS.convert(duration, this)}.
      * @param duration the duration

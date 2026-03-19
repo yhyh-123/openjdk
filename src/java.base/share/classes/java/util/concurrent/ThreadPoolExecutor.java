@@ -1270,8 +1270,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         this.keepAliveTime = unit.toNanos(keepAliveTime);
         this.threadFactory = threadFactory;
         this.handler = handler;
-
+        // 为当前对象生成唯一标识
         String name = Objects.toIdentityString(this);
+        // 并用这个名字创建一个共享线程容器，用于管理对象相关的线程或任务
         this.container = SharedThreadContainer.create(name);
     }
 

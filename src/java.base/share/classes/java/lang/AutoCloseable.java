@@ -50,16 +50,16 @@ package java.lang;
  */
 public interface AutoCloseable {
     /**
-     * Closes this resource, relinquishing any underlying resources.
-     * This method is invoked automatically on objects managed by the
+     * Closes this resource, relinquishing(relinquishing) any underlying(底层的) resources.
+     * This method is invoked (调用) automatically on objects managed by the
      * {@code try}-with-resources statement.
      *
      * @apiNote
-     * While this interface method is declared to throw {@code
-     * Exception}, implementers are <em>strongly</em> encouraged to
-     * declare concrete implementations of the {@code close} method to
-     * throw more specific exceptions, or to throw no exception at all
-     * if the close operation cannot fail.
+     * While this interface method is declared(已声明的) to throw {@code
+     * Exception}, implementers(实现者) are <em>strongly</em> encouraged(建议这样做) to
+     * declare concrete implementations(具体实现类) of the {@code close} method to
+     * throw more specific(具体的) exceptions, or to throw no exception at all
+     * if the close operation(操作) cannot fail.
      *
      * <p> Cases where the close operation may fail require careful
      * attention by implementers. It is strongly advised to relinquish
